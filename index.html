@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Breathe</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Raleway:wght@200;300;400&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--deep:#0a0f1a;--accent:#c8a96e;--pale:#e8ddd0}
+body{background:var(--deep);color:var(--pale);font-family:'Cormorant Garamond',serif;min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#auth-screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;background:var(--deep);padding:2rem;transition:opacity 0.8s ease}
+#auth-screen.hide{opacity:0;pointer-events:none}
+#auth-screen h1{font-weight:300;font-style:italic;font-size:clamp(2.4rem,5.5vw,4.2rem);letter-spacing:0.1em;margin-bottom:0.5rem}
+.auth-sub{font-family:'Raleway',sans-serif;font-weight:200;font-size:0.7rem;letter-spacing:0.3em;text-transform:uppercase;color:rgba(232,221,208,0.75);margin-bottom:2.5rem}
+.auth-input{background:transparent;border:1px solid rgba(200,169,110,0.3);color:var(--pale);font-family:'Raleway',sans-serif;font-weight:200;font-size:0.85rem;letter-spacing:0.1em;padding:0.8rem 1.2rem;width:100%;max-width:360px;outline:none;transition:border-color 0.3s;margin-bottom:0.8rem}
+.auth-input:focus{border-color:var(--accent)}
+.auth-input::placeholder{color:rgba(232,221,208,0.4)}
+.auth-btn{background:transparent;border:1px solid rgba(200,169,110,0.55);color:var(--accent);font-family:'Cormorant Garamond',serif;font-style:italic;font-size:1.1rem;letter-spacing:0.15em;padding:0.75rem;width:100%;max-width:360px;cursor:pointer;transition:all 0.3s ease;position:relative;overflow:hidden}
+.auth-btn::after{content:'';position:absolute;inset:0;background:rgba(200,169,110,0.08);transform:scaleX(0);transform-origin:left;transition:transform 0.3s ease}
+.auth-btn:hover::after{transform:scaleX(1)}
+.auth-msg{font-family:'Raleway',sans-serif;font-weight:200;font-size:0.72rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(232,221,208,0.75);margin-top:1rem;text-align:center;min-height:1.5rem}
+.auth-skip{font-family:'Raleway',sans-serif;font-weight:200;font-size:0.62rem;letter-spacing:0.25em;text-transform:uppercase;color:rgba(232,221,208,0.45);margin-top:1.5rem;cursor:pointer;transition:color 0.3s;background:none;border:none}
+.auth-skip:hover{color:rgba(232,221,208,0.7)}
+#landing{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;background:var(--deep);transition:opacity 1.5s ease;padding:1.5rem;overflow-y:auto}
+#landing.fade-out{opacity:0;pointer-events:none}
+.eyebrow{font-family:'Raleway',sans-serif;font-weight:200;font-size:0.68rem;letter-spacing:0.42em;text-transform:uppercase;color:var(--accent);margin-bottom:0.6rem}
+#landing h1{font-weight:300;font-style:italic;font-size:clamp(2rem,5vw,3.8rem);letter-spacing:0.1em;margin-bottom:0.6rem}
+.intro-text{font-family:'Raleway',sans-serif;font-weight:200;font-size:0.7rem;letter-spacing:0.12em;color:rgba(232,221,208,0.75);text-align:center;max-width:440px;line-height:1.9;margin-bottom:1.4rem}
+#streak-bar{display:flex;align-items:center;gap:1.2rem;margin-bottom:1.2rem;font-family:'Raleway',sans-serif;font-weight:200}
+.streak-item{display:flex;flex-direction:column;align-items:center;gap:0.2rem}
+.streak-num{font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:300;color:var(--accent);line-height:1}
+.streak-label{font-size:0.55rem;letter-spacing:0.3em;text-transform:uppercase;color:rgba(232,221,208,0.65)}
+.streak-div{width:1px;height:28px;background:rgba(200,169,110,0.2)}
+.section-label{font-family:'Raleway',sans-serif;font-weight:200;font-size:0.63rem;letter-spacing:0.38em;text-transform:uppercase;color:rgba(232,221,208,0.75);margin-bottom:0.7rem;align-self:flex-start;width:100%;max-width:620px}
+#location-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:0.55rem;width:100%;max-width:700px;margin-bottom:1.2rem}
+@media(max-width:580px){#location-grid{grid-template-columns:repeat(3,1fr)}}
+.loc-card{position:relative;overflow:hidden;background:rgba(255,255,255,0.03);border:1px solid rgba(200,169,110,0.18);cursor:pointer;transition:all 0.35s ease;display:flex;flex-direction:column;align-items:center;padding:0}
+.loc-card.locked{opacity:0.45;cursor:not-allowed;filter:grayscale(0.5)}
+.loc-card.locked:hover .loc-thumb{transform:none}
+.loc-thumb{width:100%;height:52px;background-size:cover;background-position:center;transition:transform 0.5s ease,opacity 0.35s ease;opacity:0.55;flex-shrink:0}
+.loc-card:not(.locked):hover .loc-thumb{transform:scale(1.07);opacity:0.85}
+.loc-card.active .loc-thumb{opacity:1}
+.loc-card.no-image-card .loc-thumb{background:linear-gradient(135deg,#1a3a4a,#0a0f1a)}
+.loc-bottom{width:100%;background:rgba(10,15,26,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0.3rem 0.2rem;min-height:32px;transition:min-height 0.3s ease}
+.loc-name{font-family:'Raleway',sans-serif;font-weight:200;font-size:0.52rem;letter-spacing:0.06em;text-transform:uppercase;color:rgba(232,221,208,0.85);text-align:center;line-height:1.3}
+.loc-sessions{font-family:'Raleway',sans-serif;font-weight:200;font-size:0.46rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(200,169,110,0.75);text-align:center;margin-top:0.15rem;transition:opacity 0.4s ease,max-height 0.4s ease;max-height:20px;overflow:hidden}
+.loc-card:not(.locked) .loc-sessions{opacity:0;max-height:0;margin-top:0}
+.loc-card:hover{border-color:rgba(200,169,110,0.5)}
+.loc-card.active{border-color:var(--accent)}
+.loc-card.active .loc-name{color:var(--accent)}
+.loc-check{position:absolute;top:0.22rem;right:0.22rem;width:12px;height:12px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:0.45rem;opacity:0;transition:opacity 0.3s;color:var(--deep);font-weight:700;line-height:1}
+.loc-card.active .loc-check{opacity:1}
+.lock-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1rem;opacity:0.5;pointer-events:none}
+#time-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;width:100%;max-width:700px;margin-bottom:1.2rem}
+.time-btn{background:transparent;border:1px solid rgba(200,169,110,0.18);color:rgba(232,221,208,0.75);font-family:'Raleway',sans-serif;font-weight:200;font-size:0.63rem;letter-spacing:0.15em;text-transform:uppercase;padding:0.52rem 0.3rem;cursor:pointer;transition:all 0.3s ease;position:relative}
+.time-btn.locked{opacity:0.4;cursor:not-allowed}
+.time-btn:not(.locked):hover{border-color:rgba(200,169,110,0.5);color:var(--pale)}
+.time-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(200,169,110,0.08)}
+.time-lock{font-size:0.55rem;display:block;margin-top:0.18rem;opacity:0.7;color:rgba(200,169,110,0.7)}
+.dur-row{display:flex;gap:0.55rem;width:100%;max-width:700px;margin-bottom:1.2rem}
+.dur-btn{flex:1;background:transparent;border:1px solid rgba(200,169,110,0.18);color:rgba(232,221,208,0.75);font-family:'Raleway',sans-serif;font-weight:200;font-size:0.68rem;letter-spacing:0.2em;text-transform:uppercase;padding:0.58rem;cursor:pointer;transition:all 0.3s ease}
+.dur-btn:hover{border-color:rgba(200,169,110,0.5);color:var(--pale)}
+.dur-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(200,169,110,0.08)}
+.begin-btn{background:transparent;border:1px solid rgba(200,169,110,0.55);color:var(--accent);font-family:'Cormorant Garamond',serif;font-style:italic;font-size:1.22rem;letter-spacing:0.15em;padding:0.82rem 3.5rem;cursor:pointer;transition:all 0.4s ease;position:relative;overflow:hidden;width:100%;max-width:700px;margin-top:0.4rem}
+.begin-btn::after{content:'';position:absolute;inset:0;background:rgba(200,169,110,0.08);transform:scaleX(0);transform-origin:left;transition:transform 0.4s ease}
+.begin-btn:hover::after{transform:scaleX(1)}
+#scene{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column}
+#scene.active{display:flex}
+#photo-bg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;transition:filter 0.9s ease,opacity 0.9s ease}
+#color-bg{position:fixed;inset:0;z-index:0;opacity:0;transition:opacity 0.9s ease}
+#fx-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+#vignette{position:fixed;inset:0;z-index:2;background:radial-gradient(ellipse at center,transparent 32%,rgba(5,8,15,0.82)100%);pointer-events:none}
+#breath-ui{position:relative;z-index:10;display:flex;flex-direction:column;align-items:center;width:100%;max-width:600px;padding:2rem;transition:opacity 1s ease}
+#phase-label{font-family:'Raleway',sans-serif;font-weight:200;font-size:0.72rem;letter-spacing:0.42em;text-transform:uppercase;color:#ffffff;text-shadow:0 1px 12px rgba(0,0,0,0.9);min-height:1.5rem;margin-bottom:2.5rem}
+#line-container{width:100%;position:relative;height:2px}
+#breath-line{width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(200,169,110,0.28)20%,rgba(200,169,110,0.62)50%,rgba(200,169,110,0.28)80%,transparent);position:absolute;top:0}
+#breath-dot{width:11px;height:11px;border-radius:50%;background:var(--accent);box-shadow:0 0 16px 4px rgba(200,169,110,0.5);position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+#quote{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1.5rem;padding:3rem;opacity:0;pointer-events:none;transition:opacity 3s ease;text-align:center}
+#quote.visible{opacity:1}
+#quote-text{font-family:'Cormorant Garamond',serif;font-weight:300;font-style:italic;font-size:clamp(1.5rem,3.2vw,2.6rem);line-height:1.55;color:var(--pale);max-width:720px;text-shadow:0 2px 40px rgba(0,0,0,0.92)}
+#quote-attr{font-family:'Raleway',sans-serif;font-weight:200;font-size:0.72rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--accent)}
+#unlock-toast{position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);z-index:80;background:rgba(10,15,26,0.95);border:1px solid rgba(200,169,110,0.4);padding:0.8rem 1.8rem;display:flex;align-items:center;gap:0.8rem;opacity:0;transition:opacity 0.5s ease;pointer-events:none;white-space:nowrap}
+#unlock-toast.show{opacity:1}
+.toast-icon{font-size:1.2rem}
+.toast-text{font-family:'Raleway',sans-serif;font-weight:200;font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--accent)}
+#tip-toast{position:fixed;bottom:3rem;left:50%;transform:translateX(-50%);z-index:79;background:rgba(10,15,26,0.92);border:1px solid rgba(150,190,220,0.35);padding:0.85rem 1.6rem;display:flex;align-items:center;gap:0.8rem;opacity:0;transition:opacity 0.6s ease;pointer-events:none;max-width:90vw;text-align:center}
+#tip-toast.show{opacity:1}
+.tip-icon{font-size:1rem;flex-shrink:0}
+.tip-text{font-family:'Raleway',sans-serif;font-weight:200;font-size:0.68rem;letter-spacing:0.12em;color:rgba(200,220,240,0.9);line-height:1.5}
+#end-screen{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;flex-direction:column;gap:1.1rem;background:rgba(10,15,26,0.88);backdrop-filter:blur(8px);opacity:0;transition:opacity 1s ease}
+#end-screen.visible{opacity:1}
+#end-screen h2{font-weight:300;font-style:italic;font-size:clamp(1.4rem,3vw,2.2rem);letter-spacing:0.1em;margin-bottom:0.2rem}
+#end-streak{font-family:'Raleway',sans-serif;font-weight:200;font-size:0.65rem;letter-spacing:0.35em;text-transform:uppercase;color:var(--accent);margin-bottom:0.6rem}
+.end-sub{font-family:'Raleway',sans-serif;font-weight:200;font-size:0.63rem;letter-spacing:0.35em;text-transform:uppercase;color:rgba(232,221,208,0.6);margin-bottom:0.4rem}
+.end-row{display:flex;gap:0.65rem;flex-wrap:wrap;justify-content:center}
+.end-btn{background:transparent;border:1px solid rgba(200,169,110,0.3);color:rgba(232,221,208,0.8);font-family:'Raleway',sans-serif;font-weight:200;font-size:0.68rem;letter-spacing:0.22em;text-transform:uppercase;padding:0.58rem 1.25rem;cursor:pointer;transition:all 0.3s ease}
+.end-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(200,169,110,0.07)}
+.end-btn.primary{border-color:rgba(200,169,110,0.55);color:var(--accent)}
+.end-btn.ghost{border-color:rgba(232,221,208,0.15);color:rgba(232,221,208,0.5)}
+.end-btn.ghost:hover{border-color:rgba(232,221,208,0.4);color:rgba(232,221,208,0.8)}
+#close-btn{position:fixed;top:1.3rem;right:1.5rem;z-index:50;background:transparent;border:1px solid rgba(200,169,110,0.25);color:rgba(232,221,208,0.55);font-family:'Raleway',sans-serif;font-weight:200;font-size:0.63rem;letter-spacing:0.28em;text-transform:uppercase;padding:0.36rem 0.82rem;cursor:pointer;transition:all 0.3s ease}
+#close-btn:hover{border-color:rgba(200,169,110,0.5);color:var(--accent)}
+#session-info{position:fixed;bottom:1.4rem;left:50%;transform:translateX(-50%);z-index:10;font-family:'Raleway',sans-serif;font-weight:200;font-size:0.58rem;letter-spacing:0.35em;text-transform:uppercase;color:rgba(232,221,208,0.55);pointer-events:none;white-space:nowrap}
+@media(max-height:700px){
+#landing h1{font-size:2rem;margin-bottom:0.4rem}
+.intro-text{margin-bottom:0.8rem;font-size:0.65rem}
+#streak-bar{margin-bottom:0.8rem}
+#location-grid{margin-bottom:0.8rem}
+#time-grid{margin-bottom:0.8rem}
+.dur-row{margin-bottom:0.8rem}
+.section-label{margin-bottom:0.5rem}
+.begin-btn{padding:0.65rem 3.5rem}
+}
+</style>
+</head>
+<body>
+<div id="auth-screen">
+<div class="eyebrow">A moment of stillness</div>
+<h1>Breathe</h1>
+<div class="auth-sub">Enter your email to begin</div>
+<input type="email" class="auth-input" id="auth-email" placeholder="your@email.com" />
+<button class="auth-btn" id="auth-submit">Send my link</button>
+<div class="auth-msg" id="auth-msg"></div>
+<button class="auth-skip" id="auth-skip">Continue as guest</button>
+</div>
+
+<div id="landing" style="display:none">
+<div class="eyebrow">A moment of stillness</div>
+<h1>Breathe</h1>
+<div class="intro-text">Choose a scene and begin. Complete sessions to unlock new locations, times of day, and breathing patterns — one breath at a time.</div>
+<div id="streak-bar" style="display:none">
+<div class="streak-item"><span class="streak-num" id="stat-streak">0</span><span class="streak-label">Day Streak</span></div>
+<div class="streak-div"></div>
+<div class="streak-item"><span class="streak-num" id="stat-sessions">0</span><span class="streak-label">Sessions</span></div>
+<div class="streak-div"></div>
+<div class="streak-item"><span class="streak-num" id="stat-minutes">0</span><span class="streak-label">Minutes</span></div>
+</div>
+<div class="section-label">Choose your place</div>
+<div id="location-grid">
+<button class="loc-card active" data-loc="lake">
+<div class="loc-thumb" id="thumb-lake"></div>
+<div class="loc-bottom"><div class="loc-name">Mountain Lake</div><div class="loc-sessions"></div></div>
+<div class="loc-check">&#10003;</div>
+</button>
+<button class="loc-card locked" data-loc="ocean" data-sessions="3">
+<div class="loc-thumb" id="thumb-ocean"></div>
+<div class="loc-bottom"><div class="loc-name">Ocean Cliff</div><div class="loc-sessions">🔒 3 sessions</div></div>
+<div class="loc-check">&#10003;</div>
+<div class="lock-overlay">🔒</div>
+</button>
+<button class="loc-card locked" data-loc="forest" data-sessions="5">
+<div class="loc-thumb" id="thumb-forest"></div>
+<div class="loc-bottom"><div class="loc-name">Pine Forest</div><div class="loc-sessions">🔒 5 sessions</div></div>
+<div class="loc-check">&#10003;</div>
+<div class="lock-overlay">🔒</div>
+</button>
+<button class="loc-card locked" data-loc="desert" data-sessions="10">
+<div class="loc-thumb" id="thumb-desert"></div>
+<div class="loc-bottom"><div class="loc-name">Desert Mesa</div><div class="loc-sessions">🔒 10 sessions</div></div>
+<div class="loc-check">&#10003;</div>
+<div class="lock-overlay">🔒</div>
+</button>
+<button class="loc-card locked" data-loc="meadow" data-sessions="15">
+<div class="loc-thumb" id="thumb-meadow"></div>
+<div class="loc-bottom"><div class="loc-name">Wildflower Meadow</div><div class="loc-sessions">🔒 15 sessions</div></div>
+<div class="loc-check">&#10003;</div>
+<div class="lock-overlay">🔒</div>
+</button>
+<button class="loc-card no-image-card" data-loc="none">
+<div class="loc-thumb" id="thumb-none" style="background:linear-gradient(135deg,#1a3a4a 0%,#0a1520 100%)"></div>
+<div class="loc-bottom"><div class="loc-name">No Image</div><div class="loc-sessions"></div></div>
+<div class="loc-check">&#10003;</div>
+</button>
+</div>
+<div class="section-label">Time of day</div>
+<div id="time-grid">
+<button class="time-btn locked" data-time="dawn" data-sessions="20">Dawn<span class="time-lock">🔒 20 sessions</span></button>
+<button class="time-btn active" data-time="dusk">Dusk</button>
+<button class="time-btn locked" data-time="night" data-sessions="8">Night<span class="time-lock">🔒 8 sessions</span></button>
+<button class="time-btn locked" data-time="golden" data-sessions="5">Golden Hour<span class="time-lock">🔒 5 sessions</span></button>
+</div>
+<div class="section-label">Session length</div>
+<div class="dur-row">
+<button class="dur-btn active" data-mins="2">2 min</button>
+<button class="dur-btn" data-mins="3">3 min</button>
+<button class="dur-btn" data-mins="5">5 min</button>
+</div>
+<button class="begin-btn" id="begin-btn">Begin</button>
+</div>
+
+<div id="scene">
+<div id="photo-bg"></div>
+<div id="color-bg"></div>
+<canvas id="fx-canvas"></canvas>
+<div id="vignette"></div>
+<div id="breath-ui">
+<div id="phase-label">find a comfortable seat</div>
+<div id="line-container"><div id="breath-line"></div><div id="breath-dot"></div></div>
+</div>
+<div id="quote"><div id="quote-text"></div><div id="quote-attr"></div></div>
+<div id="session-info"></div>
+<button id="close-btn">&#10005; end</button>
+<div id="end-screen">
+<h2>Well done</h2>
+<div id="end-streak"></div>
+<div class="end-sub">Replay this session</div>
+<div class="end-row">
+<button class="end-btn primary" data-replay="2">2 min</button>
+<button class="end-btn primary" data-replay="3">3 min</button>
+<button class="end-btn primary" data-replay="5">5 min</button>
+</div>
+<div class="end-row" style="margin-top:0.5rem">
+<button class="end-btn" id="change-scene-btn">Change scene</button>
+<button class="end-btn ghost" id="exit-btn">Exit</button>
+</div>
+</div>
+</div>
+
+<div id="unlock-toast"><span class="toast-icon" id="toast-icon"></span><span class="toast-text" id="toast-text"></span></div>
+<div id="tip-toast"><span class="tip-icon">💡</span><span class="tip-text" id="tip-text"></span></div>
+
+<script>
+const SUPABASE_URL = 'https://asdkskkhsupbqkhwcbun.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzZGtza2toc3VwYnFraHdjYnVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NzcwMjUsImV4cCI6MjA5MjU1MzAyNX0.boWOR5ZM-t2s8KraZodcHjr-aTL27LT70_UVcjLDVIQ';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+var currentUser=null,userStats={current_streak:0,total_sessions:0,total_minutes:0,longest_streak:0},userUnlocks=[],isGuest=false;
+
+// All photo URLs now use the same image for both thumb and session background
+var PHOTOS={
+  lake:{
+    warm:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4',
+    cool:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4',
+    thumb:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=160&fit=crop&auto=format'
+  },
+  ocean:{
+    warm:'https://images.unsplash.com/photo-1471922694854-ff1b63b20054',
+    cool:'https://images.unsplash.com/photo-1505118380757-91f5f5632de0',
+    thumb:'https://images.unsplash.com/photo-1471922694854-ff1b63b20054?w=300&h=160&fit=crop&auto=format'
+  },
+  forest:{
+    warm:'https://images.unsplash.com/photo-1448375240586-882707db888b',
+    cool:'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d',
+    thumb:'https://images.unsplash.com/photo-1448375240586-882707db888b?w=300&h=160&fit=crop&auto=format'
+  },
+  desert:{
+    warm:'https://images.unsplash.com/photo-1509316785289-025f5b846b35',
+    cool:'https://images.unsplash.com/photo-1531366936337-7c912a4589a7',
+    thumb:'https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=300&h=160&fit=crop&auto=format'
+  },
+  meadow:{
+    warm:'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429',
+    cool:'https://images.unsplash.com/photo-1462275646964-a0e3386b89fa',
+    thumb:'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=300&h=160&fit=crop&auto=format'
+  },
+  none:{warm:null,cool:null,thumb:null}
+};
+var FALLBACK_COLORS={lake:'#1a2a3a',ocean:'#0d1f2d',forest:'#0f1f0f',desert:'#2a1a0a',meadow:'#1a2a0f',none:'#0a1520'};
+
+// Relaxation tips shown at session milestones
+var TIPS=[
+  {at:1, text:"Keep your feet flat on the floor and let your hands rest gently in your lap."},
+  {at:2, text:"Sit up straight but not rigid — imagine a thread gently lifting the crown of your head."},
+  {at:3, text:"With each exhale, consciously release tension from your shoulders. Let them drop."},
+  {at:5, text:"Try softening your jaw and unclenching your teeth. Most of us hold tension there without realizing it."},
+  {at:7, text:"Let your eyes go completely still or close them gently. Stillness in the eyes creates stillness in the mind."},
+  {at:10, text:"Notice your hands. Are they gripping? Let your fingers go completely loose and open."},
+  {at:12, text:"With each inhale, imagine breathing in calm. With each exhale, imagine releasing what you no longer need."},
+  {at:15, text:"Try placing one hand on your belly and feel it rise with each inhale. This deepens your breath naturally."},
+  {at:18, text:"Soften the muscles around your eyes and forehead. A relaxed face signals safety to your nervous system."},
+  {at:20, text:"You've built a real practice. Notice how much easier stillness comes now than it did in your first session."},
+  {at:25, text:"Try extending your exhale by one or two counts. A longer exhale activates your body's relaxation response."},
+  {at:30, text:"You've reached 30 sessions. Your nervous system has genuinely changed. Keep going."},
+];
+
+function getPhotoUrl(loc,time){
+  if(loc==='none')return null;
+  return PHOTOS[loc][(['dawn','golden'].includes(time)?'warm':'cool')]+'?w=1920&h=1080&fit=crop&auto=format&q=80';
+}
+function loadThumbs(){
+  Object.entries(PHOTOS).forEach(function(e){
+    var el=document.getElementById('thumb-'+e[0]);
+    if(!el||!e[1].thumb)return;
+    el.style.background=FALLBACK_COLORS[e[0]];
+    var img=new Image();
+    img.onload=function(){el.style.backgroundImage="url('"+e[1].thumb+"')";};
+    img.src=e[1].thumb;
+  });
+}
+
+var LOCATION_SESSIONS={lake:0,ocean:3,forest:5,desert:10,meadow:15,none:0};
+var TIME_SESSIONS={dusk:0,golden:5,night:8,dawn:20};
+
+function applyUnlocks(){
+  var total=userStats.total_sessions;
+  document.querySelectorAll('.loc-card').forEach(function(card){
+    var loc=card.dataset.loc,required=LOCATION_SESSIONS[loc]||0;
+    var unlocked=isGuest?(loc==='lake'||loc==='none'):(total>=required);
+    if(unlocked){
+      card.classList.remove('locked');
+      var lo=card.querySelector('.lock-overlay');
+      if(lo)lo.remove();
+      var ls=card.querySelector('.loc-sessions');
+      if(ls){ls.style.opacity='0';ls.style.maxHeight='0';ls.style.marginTop='0';}
+    }
+  });
+  document.querySelectorAll('.time-btn').forEach(function(btn){
+    var time=btn.dataset.time,required=TIME_SESSIONS[time]||0;
+    var unlocked=isGuest?(time==='dusk'):(total>=required);
+    if(unlocked){
+      btn.classList.remove('locked');
+      var ls=btn.querySelector('.time-lock');
+      if(ls)ls.remove();
+    }
+  });
+}
+
+function showUnlockToast(icon,text){
+  var toast=document.getElementById('unlock-toast');
+  document.getElementById('toast-icon').textContent=icon;
+  document.getElementById('toast-text').textContent=text;
+  toast.classList.add('show');
+  setTimeout(function(){toast.classList.remove('show');},3500);
+}
+
+function showTipToast(text){
+  var toast=document.getElementById('tip-toast');
+  document.getElementById('tip-text').textContent=text;
+  toast.classList.add('show');
+  setTimeout(function(){toast.classList.remove('show');},6000);
+}
+
+function checkNewUnlocks(prev,next){
+  var msgs=[
+    {at:3,icon:'🌊',text:'Ocean Cliff unlocked'},
+    {at:5,icon:'🌲',text:'Pine Forest unlocked'},
+    {at:5,icon:'🌅',text:'Golden Hour unlocked'},
+    {at:7,icon:'⬜',text:'Box Breathing unlocked'},
+    {at:8,icon:'🌙',text:'Night unlocked'},
+    {at:10,icon:'🌵',text:'Desert Mesa unlocked'},
+    {at:12,icon:'😴',text:'4-7-8 Sleep Breath unlocked'},
+    {at:15,icon:'🌾',text:'Wildflower Meadow unlocked'},
+    {at:20,icon:'🌄',text:'Dawn unlocked'},
+  ];
+  var delay=1000;
+  msgs.forEach(function(u){
+    if(prev<u.at&&next>=u.at){
+      setTimeout(function(){showUnlockToast(u.icon,u.text);},delay);
+      delay+=4000;
+    }
+  });
+  // Show relaxation tip after unlocks
+  TIPS.forEach(function(tip){
+    if(prev<tip.at&&next>=tip.at){
+      setTimeout(function(){showTipToast(tip.text);},delay);
+      delay+=7000;
+    }
+  });
+}
+
+function initAuth(){
+  sb.auth.onAuthStateChange(async function(event,session){
+    if(event==='SIGNED_IN'||event==='INITIAL_SESSION'){
+      if(session){
+        currentUser=session.user;isGuest=false;
+        await loadUserData();showLanding();
+      } else if(event==='INITIAL_SESSION'){
+        showAuth();
+      }
+    }
+  });
+}
+function showAuth(){document.getElementById('auth-screen').style.display='flex';document.getElementById('landing').style.display='none';}
+function showLanding(){
+  if(document.getElementById('landing').style.display==='flex')return;
+  document.getElementById('auth-screen').classList.add('hide');
+  setTimeout(function(){
+    document.getElementById('auth-screen').style.display='none';
+    document.getElementById('landing').style.display='flex';
+    if(currentUser&&!isGuest){document.getElementById('streak-bar').style.display='flex';updateStreakDisplay();}
+    applyUnlocks();loadThumbs();
+  },800);
+}
+document.getElementById('auth-submit').addEventListener('click',async function(){
+  var email=document.getElementById('auth-email').value.trim();
+  if(!email||!email.includes('@')){document.getElementById('auth-msg').textContent='Please enter a valid email.';return;}
+  document.getElementById('auth-msg').textContent='Sending your link…';
+  var result=await sb.auth.signInWithOtp({email:email,options:{emailRedirectTo:window.location.href}});
+  if(result.error){document.getElementById('auth-msg').textContent='Something went wrong. Try again.';}
+  else{document.getElementById('auth-msg').textContent='Check your email — your link is on its way.';document.getElementById('auth-submit').style.opacity='0.5';document.getElementById('auth-submit').style.pointerEvents='none';}
+});
+document.getElementById('auth-email').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('auth-submit').click();});
+document.getElementById('auth-skip').addEventListener('click',function(){isGuest=true;showLanding();});
+
+async function loadUserData(){
+  if(!currentUser)return;
+  var result=await sb.from('streaks').select('*').eq('user_id',currentUser.id).single();
+  if(result.data){userStats=result.data;}
+  var unlockResult=await sb.from('unlocks').select('unlock_key').eq('user_id',currentUser.id);
+  if(unlockResult.data){userUnlocks=unlockResult.data.map(function(u){return u.unlock_key;});}
+}
+function updateStreakDisplay(){
+  document.getElementById('stat-streak').textContent=userStats.current_streak||0;
+  document.getElementById('stat-sessions').textContent=userStats.total_sessions||0;
+  document.getElementById('stat-minutes').textContent=userStats.total_minutes||0;
+}
+async function saveSession(loc,time,durationSeconds){
+  if(!currentUser||isGuest)return;
+  var prevSessions=userStats.total_sessions||0;
+  await sb.from('sessions').insert({user_id:currentUser.id,location:loc,time_of_day:time,duration_seconds:durationSeconds,completed:true});
+  var today=new Date().toISOString().split('T')[0],lastDate=userStats.last_session_date,yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0],newStreak=userStats.current_streak||0;
+  if(lastDate===today){}else if(lastDate===yesterday){newStreak+=1;}else{newStreak=1;}
+  var newTotal=(userStats.total_sessions||0)+1,newMinutes=(userStats.total_minutes||0)+Math.round(durationSeconds/60),newLongest=Math.max(userStats.longest_streak||0,newStreak);
+  await sb.from('streaks').upsert({user_id:currentUser.id,current_streak:newStreak,longest_streak:newLongest,total_sessions:newTotal,total_minutes:newMinutes,last_session_date:today});
+  userStats.current_streak=newStreak;userStats.longest_streak=newLongest;userStats.total_sessions=newTotal;userStats.total_minutes=newMinutes;userStats.last_session_date=today;
+  checkNewUnlocks(prevSessions,newTotal);
+  applyUnlocks();updateStreakDisplay();
+  document.getElementById('end-streak').textContent=newStreak>1?newStreak+' day streak 🔥':'Session complete';
+}
+
+// No-image color background animation
+var colorBgAnim=null;
+function startColorBg(bp,imgOpacity){
+  var el=document.getElementById('color-bg');
+  var hue=200+bp*20;
+  var lightness=Math.round(4+bp*12);
+  var darkness=1-imgOpacity;
+  el.style.background='hsl('+hue+',40%,'+lightness+'%)';
+  el.style.opacity=1;
+}
+function stopColorBg(){
+  var el=document.getElementById('color-bg');
+  el.style.opacity=0;
+  el.style.background='';
+}
+
+var fxCanvas=document.getElementById('fx-canvas'),fxCtx=fxCanvas.getContext('2d'),W,H;
+function resizeCanvas(){W=fxCanvas.width=window.innerWidth;H=fxCanvas.height=window.innerHeight;}
+function drawFx(imgOpacity,bp,time,isNoImage){
+  fxCtx.clearRect(0,0,W,H);
+  if(isNoImage){
+    // Breathing color pulse for no-image mode
+    startColorBg(bp,imgOpacity);
+    return;
+  }
+  if(imgOpacity<1){fxCtx.globalAlpha=1-imgOpacity;fxCtx.fillStyle='hsl(225,30%,'+(3+bp*7)+'%)';fxCtx.fillRect(0,0,W,H);fxCtx.globalAlpha=1;}
+  var isWarm=(time==='dawn'||time==='golden');
+  fxCtx.fillStyle=isWarm?'rgba(255,200,120,'+(bp*0.07)+')':'rgba(140,175,220,'+(bp*0.07)+')';
+  fxCtx.fillRect(0,0,W,H);
+  if(bp>0.35){var rad=fxCtx.createRadialGradient(W/2,H/2,0,W/2,H/2,W*0.5);rad.addColorStop(0,'rgba(255,235,200,'+((bp-0.35)*0.05)+')');rad.addColorStop(1,'transparent');fxCtx.fillStyle=rad;fxCtx.fillRect(0,0,W,H);}
+}
+
+var audioCtx,masterGain,oNodes=[],noiseSrc;
+function startAudio(loc){
+  stopAudio();
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  masterGain=audioCtx.createGain();
+  masterGain.gain.setValueAtTime(0.0001,audioCtx.currentTime);
+  masterGain.gain.linearRampToValueAtTime(0.38,audioCtx.currentTime+5);
+  masterGain.connect(audioCtx.destination);
+  var tunings={lake:[55,82.4,110,146.8,220],ocean:[48,72,96,144,192],forest:[58,87,116,174,232],desert:[50,75,100,150,200],meadow:[52,78,104,156,208],none:[55,82.4,110,146.8,220]};
+  (tunings[loc]||tunings.lake).forEach(function(f,i){
+    var osc=audioCtx.createOscillator(),g=audioCtx.createGain(),lfo=audioCtx.createOscillator(),lG=audioCtx.createGain();
+    lfo.frequency.value=0.04+i*0.007;lG.gain.value=0.003;lfo.connect(lG);lG.connect(osc.frequency);
+    osc.type=i%2===0?'sine':'triangle';osc.frequency.value=f;g.gain.value=0.022/(1+i*0.45);
+    osc.connect(g);g.connect(masterGain);lfo.start();osc.start();oNodes.push(osc,lfo);
+  });
+  var bufSize=audioCtx.sampleRate*4,buf=audioCtx.createBuffer(1,bufSize,audioCtx.sampleRate),d=buf.getChannelData(0);
+  for(var i=0;i<bufSize;i++)d[i]=Math.random()*2-1;
+  noiseSrc=audioCtx.createBufferSource();noiseSrc.buffer=buf;noiseSrc.loop=true;
+  var f1=audioCtx.createBiquadFilter(),f2=audioCtx.createBiquadFilter(),gN=audioCtx.createGain();
+  f1.type='bandpass';f1.frequency.value={lake:400,ocean:280,forest:600,desert:350,meadow:700,none:400}[loc]||400;f1.Q.value=0.4;
+  f2.type='lowpass';f2.frequency.value=900;gN.gain.value=0.055;
+  noiseSrc.connect(f1);f1.connect(f2);f2.connect(gN);gN.connect(masterGain);noiseSrc.start();
+  var lfo2=audioCtx.createOscillator(),lG2=audioCtx.createGain();
+  lfo2.frequency.value={lake:0.08,ocean:0.12,forest:0.05,desert:0.04,meadow:0.09,none:0.07}[loc]||0.08;
+  lG2.gain.value=150;lfo2.connect(lG2);lG2.connect(f1.frequency);lfo2.start();oNodes.push(lfo2);
+}
+function fadeOutAudio(d){if(masterGain)masterGain.gain.linearRampToValueAtTime(0,audioCtx.currentTime+d);}
+function stopAudio(){
+  try{if(noiseSrc)noiseSrc.stop();}catch(e){}
+  oNodes.forEach(function(o){try{o.stop();}catch(e){}});oNodes=[];noiseSrc=null;
+  if(audioCtx){try{audioCtx.close();}catch(e){}}audioCtx=null;masterGain=null;
+}
+
+var QUOTES={
+  lake:[{text:"You are the sky. Everything else is just the weather.",attr:"Pema Chödrön"},{text:"Like still water, clarity comes when we stop disturbing the surface.",attr:""},{text:"In stillness, the lake reflects the whole sky.",attr:""}],
+  ocean:[{text:"You can't stop the waves, but you can learn to surf.",attr:"Jon Kabat-Zinn"},{text:"The ocean does not apologize for its depth, and neither should you.",attr:""},{text:"Let the waves carry what no longer serves you.",attr:""}],
+  forest:[{text:"The quieter you become, the more you can hear.",attr:"Ram Dass"},{text:"Every tree was once a seed that decided not to give up.",attr:""},{text:"In the forest of yourself, peace is always in season.",attr:""}],
+  desert:[{text:"The desert teaches this: what appears empty is often full of quiet power.",attr:""},{text:"Even in the most barren landscape, life finds a way — and so will you.",attr:""},{text:"Stars are sharpest in the darkest skies.",attr:""}],
+  meadow:[{text:"You do not need to earn rest. Stillness is your birthright.",attr:""},{text:"Like wildflowers, you were not made to fit in — you were made to bloom.",attr:""},{text:"The meadow does not hurry spring, and yet it always arrives.",attr:""}],
+  none:[{text:"In the absence of distraction, the mind finds itself.",attr:""},{text:"Darkness is not empty. It is full of possibility.",attr:""},{text:"Sometimes the most beautiful thing is simply being here.",attr:""}]
+};
+
+var currentLoc='lake',currentTime='dusk',sessionDuration=120,sessionStart,animFrame,sessionActive=false,breathPhase=0,phaseStart,dotY=0;
+var PHASES=[{dur:4,dir:1,name:'inhale'},{dur:2,dir:0,name:'hold'},{dur:6,dir:-1,name:'exhale'},{dur:2,dir:0,name:'rest'}];
+var DOT_AMP=60;
+function easeInOut(t){return t<0.5?2*t*t:-1+(4-2*t)*t;}
+function getBreathProgress(){return(dotY+1)/2;}
+function updateBreath(now){
+  var el=(now-phaseStart)/1000,ph=PHASES[breathPhase],t=Math.min(el/ph.dur,1),et=easeInOut(t);
+  if(ph.dir===1)dotY=et;else if(ph.dir===-1)dotY=1-et;
+  document.getElementById('phase-label').textContent=ph.name;
+  if(t>=1){breathPhase=(breathPhase+1)%PHASES.length;phaseStart=now;}
+  var lW=document.getElementById('line-container').getBoundingClientRect().width,dot=document.getElementById('breath-dot');
+  dot.style.left=(lW/2)+'px';dot.style.top='calc(50% + '+(-dotY*DOT_AMP)+'px)';dot.style.transform='translate(-50%,-50%)';
+  dot.style.boxShadow='0 0 '+(10+dotY*20)+'px '+(2+dotY*6)+'px rgba(200,169,110,'+(0.3+dotY*0.4)+')';
+}
+function tick(){
+  var now=performance.now(),el=(now-sessionStart)/1000,p=Math.min(el/sessionDuration,1),op;
+  var isNoImage=(currentLoc==='none');
+  if(isNoImage){
+    op=0;
+  } else {
+    if(p<0.12)op=1;else if(p<0.30)op=1-(p-0.12)/0.18;else if(p<0.72)op=0;else if(p<0.88)op=(p-0.72)/0.16;else op=1;
+  }
+  updateBreath(now);
+  var bp=getBreathProgress(),photo=document.getElementById('photo-bg');
+  if(!isNoImage){
+    photo.style.filter='brightness('+(0.52+bp*0.4)+') saturate('+(0.75+bp*0.35)+')';
+    photo.style.opacity=op;
+  }
+  drawFx(op,bp,currentTime,isNoImage);
+  var ui=document.getElementById('breath-ui');
+  if(p<0.04)ui.style.opacity=(p/0.04).toString();else if(p>0.92)ui.style.opacity=((1-p)/0.08).toString();else ui.style.opacity='1';
+  if(p>=0.90)document.getElementById('quote').classList.add('visible');
+  if(p>=1){document.getElementById('phase-label').textContent='';fadeOutAudio(4);saveSession(currentLoc,currentTime,sessionDuration);showEndScreen();return;}
+  animFrame=requestAnimationFrame(tick);
+}
+
+var LOC_NAMES={lake:'Mountain Lake',ocean:'Ocean Cliff',forest:'Pine Forest',desert:'Desert Mesa',meadow:'Wildflower Meadow',none:'No Image'};
+var TIME_NAMES={dawn:'Dawn',dusk:'Dusk',night:'Night',golden:'Golden Hour'};
+
+function tryLoadPhoto(url,onSuccess,onFail){
+  if(!url){onSuccess(null);return;}
+  var img=new Image(),done=false,timer=setTimeout(function(){if(!done){done=true;onFail();}},7000);
+  img.onload=function(){if(!done){done=true;clearTimeout(timer);onSuccess(url);}};
+  img.onerror=function(){if(!done){done=true;clearTimeout(timer);onFail();}};
+  img.crossOrigin='anonymous';img.src=url;
+}
+function launchSession(){
+  var pool=QUOTES[currentLoc]||QUOTES.lake,q=pool[Math.floor(Math.random()*pool.length)];
+  document.getElementById('quote-text').textContent='"'+q.text+'"';
+  document.getElementById('quote-attr').textContent=q.attr?'— '+q.attr:'';
+  document.getElementById('session-info').textContent=LOC_NAMES[currentLoc]+' · '+TIME_NAMES[currentTime]+' · '+(sessionDuration/60)+' min';
+  document.getElementById('landing').classList.add('fade-out');
+  setTimeout(function(){document.getElementById('landing').style.display='none';},1600);
+  document.getElementById('quote').classList.remove('visible');
+  document.getElementById('breath-ui').style.opacity='0';
+  document.getElementById('phase-label').textContent='find a comfortable seat';
+  document.getElementById('end-screen').style.display='none';
+  document.getElementById('end-screen').classList.remove('visible');
+  document.getElementById('end-streak').textContent='';
+  document.getElementById('close-btn').style.display='';
+  document.getElementById('scene').classList.add('active');
+  resizeCanvas();startAudio(currentLoc);
+  sessionActive=true;sessionStart=performance.now();phaseStart=sessionStart;breathPhase=0;dotY=0;
+  if(animFrame)cancelAnimationFrame(animFrame);
+  setTimeout(function(){tick();},800);
+}
+function startSession(loc,time,mins){
+  currentLoc=loc;currentTime=time;sessionDuration=mins*60;
+  var photo=document.getElementById('photo-bg'),btn=document.getElementById('begin-btn');
+  btn.textContent='Loading…';btn.style.pointerEvents='none';
+  stopColorBg();
+  if(loc==='none'){
+    photo.style.backgroundImage='';photo.style.opacity='0';
+    btn.textContent='Begin';btn.style.pointerEvents='';
+    launchSession();return;
+  }
+  photo.style.background=FALLBACK_COLORS[loc]||'#0a0f1a';
+  photo.style.backgroundImage='';photo.style.opacity='1';photo.style.filter='brightness(0.65) saturate(0.85)';
+  var url=getPhotoUrl(loc,time);
+  tryLoadPhoto(url,function(u){
+    if(u)photo.style.backgroundImage="url('"+u+"')";
+    btn.textContent='Begin';btn.style.pointerEvents='';launchSession();
+  },function(){btn.textContent='Begin';btn.style.pointerEvents='';launchSession();});
+}
+function showEndScreen(){
+  stopColorBg();
+  var es=document.getElementById('end-screen');es.style.display='flex';
+  document.getElementById('close-btn').style.display='none';
+  setTimeout(function(){es.classList.add('visible');},80);
+}
+function endSession(goHome){
+  if(animFrame)cancelAnimationFrame(animFrame);
+  fadeOutAudio(1.5);stopColorBg();
+  var scene=document.getElementById('scene');
+  scene.style.transition='opacity 1.2s ease';scene.style.opacity='0';
+  setTimeout(function(){
+    scene.classList.remove('active');scene.style.opacity='';scene.style.transition='';
+    document.getElementById('end-screen').style.display='none';document.getElementById('end-screen').classList.remove('visible');
+    document.getElementById('close-btn').style.display='';document.getElementById('quote').classList.remove('visible');
+    sessionActive=false;stopAudio();
+    if(goHome){var l=document.getElementById('landing');l.style.display='flex';l.style.opacity='0';l.classList.remove('fade-out');setTimeout(function(){l.style.transition='opacity 1s ease';l.style.opacity='1';},50);}
+  },1300);
+}
+function replaySession(mins){
+  var es=document.getElementById('end-screen');es.classList.remove('visible');
+  setTimeout(function(){
+    es.style.display='none';document.getElementById('close-btn').style.display='';
+    document.getElementById('quote').classList.remove('visible');document.getElementById('breath-ui').style.opacity='0';
+    document.getElementById('phase-label').textContent='find a comfortable seat';
+    stopAudio();startAudio(currentLoc);stopColorBg();
+    sessionActive=true;sessionDuration=mins*60;sessionStart=performance.now();phaseStart=sessionStart;breathPhase=0;dotY=0;
+    var photo=document.getElementById('photo-bg');photo.style.opacity=currentLoc==='none'?'0':'1';photo.style.filter='brightness(0.65) saturate(0.85)';
+    document.getElementById('session-info').textContent=LOC_NAMES[currentLoc]+' · '+TIME_NAMES[currentTime]+' · '+mins+' min';
+    if(animFrame)cancelAnimationFrame(animFrame);
+    setTimeout(function(){tick();},400);
+  },600);
+}
+
+document.querySelectorAll('.loc-card').forEach(function(b){b.addEventListener('click',function(){if(b.classList.contains('locked'))return;document.querySelectorAll('.loc-card').forEach(function(x){x.classList.remove('active');});b.classList.add('active');});});
+document.querySelectorAll('.time-btn').forEach(function(b){b.addEventListener('click',function(){if(b.classList.contains('locked'))return;document.querySelectorAll('.time-btn').forEach(function(x){x.classList.remove('active');});b.classList.add('active');});});
+document.querySelectorAll('.dur-btn').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.dur-btn').forEach(function(x){x.classList.remove('active');});b.classList.add('active');});});
+document.getElementById('begin-btn').addEventListener('click',function(){
+  var loc=document.querySelector('.loc-card.active').dataset.loc,time=document.querySelector('.time-btn.active').dataset.time,mins=parseInt(document.querySelector('.dur-btn.active').dataset.mins);
+  startSession(loc,time,mins);
+});
+document.getElementById('close-btn').addEventListener('click',function(){endSession(true);});
+document.querySelectorAll('[data-replay]').forEach(function(b){b.addEventListener('click',function(){replaySession(parseInt(b.dataset.replay));});});
+document.getElementById('change-scene-btn').addEventListener('click',function(){endSession(true);});
+document.getElementById('exit-btn').addEventListener('click',function(){endSession(true);});
+window.addEventListener('resize',function(){if(sessionActive)resizeCanvas();});
+document.addEventListener('touchmove',function(e){e.preventDefault();},{passive:false});
+initAuth();
+</script>
+</body>
+</html>
