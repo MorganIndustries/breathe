@@ -230,9 +230,9 @@ var currentUser=null,userStats={current_streak:0,total_sessions:0,total_minutes:
 // All photo URLs now use the same image for both thumb and session background
 var PHOTOS={
   lake:{
-    warm:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4',
-    cool:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4',
-    thumb:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=160&fit=crop&auto=format'
+    warm:'https://images.unsplash.com/photo-1493246507139-91e8fad9978e',
+    cool:'https://images.unsplash.com/photo-1493246507139-91e8fad9978e',
+    thumb:'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=300&h=160&fit=crop&auto=format'
   },
   ocean:{
     warm:'https://images.unsplash.com/photo-1471922694854-ff1b63b20054',
@@ -526,7 +526,6 @@ function tick(){
   drawFx(op,bp,currentTime,isNoImage);
   var ui=document.getElementById('breath-ui');
   if(p<0.04)ui.style.opacity=(p/0.04).toString();else if(p>0.92)ui.style.opacity=((1-p)/0.08).toString();else ui.style.opacity='1';
-  if(p>=0.90)document.getElementById('quote').classList.add('visible');
   if(p>=1){document.getElementById('phase-label').textContent='';fadeOutAudio(4);saveSession(currentLoc,currentTime,sessionDuration);showEndScreen();return;}
   animFrame=requestAnimationFrame(tick);
 }
