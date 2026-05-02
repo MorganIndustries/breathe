@@ -408,7 +408,7 @@ function updateStreakDisplay(){
 async function saveSession(loc,time,durationSeconds){
   if(!currentUser||isGuest)return;
   var prevSessions=userStats.total_sessions||0;
-  var ins=await sb.from('sessions').insert({user_id:currentUser.id,location:loc,time_of_day:time,duration_seconds:durationSeconds,completed:true,completed_at:new Date().toISOString()});
+  var ins=await sb.from('sessions').insert({user_id:currentUser.id,location:loc,time_of_day:time,duration_seconds:durationSeconds,completed:true});
   if(ins.error){console.error('[Breathemore] session insert failed:',ins.error.message,ins.error);return;}
   var today=new Date().toISOString().split('T')[0],lastDate=userStats.last_session_date,yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0],newStreak=userStats.current_streak||0;
   if(lastDate===today){}else if(lastDate===yesterday){newStreak+=1;}else{newStreak=1;}
