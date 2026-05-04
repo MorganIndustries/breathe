@@ -436,8 +436,15 @@ document.getElementById('auth-submit').addEventListener('click',async function()
   var email=document.getElementById('auth-email').value.trim();
   if(!email||!email.includes('@')){document.getElementById('auth-msg').textContent='Please enter a valid email.';return;}
   document.getElementById('auth-msg').textContent='Sending your link…';
-  var result=await sb.auth.signInWithOtp({email:email,options:{emailRedirectTo:'https://breathemore.co'}});
-  if(result.error){console.error('[Breathemore] OTP error:',result.error.message,result.error);document.getElementById('auth-msg').textContent='Something went wrong: '+result.error.message;}
+  var [otpResult]=await Promise.all([
+    sb.auth.signInWithOtp({email:email,options:{emailRedirectTo:'https://breathemore.co'}}),
+    fetch(SUPABASE_URL+'/functions/v1/subscribe-to-beehiiv',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON},
+      body:JSON.stringify({email:email})
+    }).catch(function(e){console.error('[Breathemore] Beehiiv subscribe error:',e);})
+  ]);
+  if(otpResult.error){console.error('[Breathemore] OTP error:',otpResult.error.message,otpResult.error);document.getElementById('auth-msg').textContent='Something went wrong: '+otpResult.error.message;}
   else{document.getElementById('auth-msg').textContent='Check your email — your link is on its way.';document.getElementById('auth-submit').style.opacity='0.5';document.getElementById('auth-submit').style.pointerEvents='none';}
 });
 document.getElementById('auth-email').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('auth-submit').click();});
