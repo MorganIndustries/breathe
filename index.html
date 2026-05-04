@@ -416,6 +416,9 @@ async function insertSessionRecord(source){
     source:source||'direct',
     background_image:currentLoc,
     breathing_technique:'simple_deep',
+    location:currentLoc,
+    time_of_day:currentTime,
+    duration_seconds:0,
     completed:false
   }).select('id').single();
   if(ins.error){console.error('[Breathemore] session record insert failed:',ins.error.message);}
@@ -470,7 +473,7 @@ async function saveSession(loc,time,durationSeconds){
     var upd=await sb.from('sessions').update({completed:true,completed_at:new Date().toISOString(),duration_seconds:durationSeconds}).eq('id',currentSessionId);
     if(upd.error)console.error('[Breathemore] session update failed:',upd.error.message,upd.error);
   }else{
-    var fb=await sb.from('sessions').insert({user_id:currentUser.id,started_at:new Date().toISOString(),completed_at:new Date().toISOString(),duration_seconds:durationSeconds,background_image:loc,breathing_technique:'simple_deep',completed:true,source:'direct'});
+    var fb=await sb.from('sessions').insert({user_id:currentUser.id,started_at:new Date().toISOString(),completed_at:new Date().toISOString(),duration_seconds:durationSeconds,background_image:loc,location:loc,time_of_day:time,breathing_technique:'simple_deep',completed:true,source:'direct'});
     if(fb.error){console.error('[Breathemore] session insert failed:',fb.error.message,fb.error);}
   }
   currentSessionId=null;sessionInsertPromise=null;
