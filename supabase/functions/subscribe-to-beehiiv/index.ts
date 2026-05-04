@@ -29,19 +29,18 @@ Deno.serve(async (req: Request) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${Deno.env.get('BEEHIIV_API_KEY')}`,
         },
-        body: JSON.stringify({ email, send_welcome_email: true }),
+        body: JSON.stringify({ email, send_welcome_email: false }),
       }
     )
 
     if (!resp.ok) {
-      console.error('Beehiiv error:', await resp.text())
+      console.error('Beehiiv error:', resp.status, await resp.text())
     }
 
   } catch (err) {
     console.error('subscribe-to-beehiiv error:', err)
   }
 
-  // Always return success — a Beehiiv failure should never block signup
   return new Response(
     JSON.stringify({ success: true }),
     { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
