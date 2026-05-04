@@ -225,7 +225,7 @@ body{background:var(--deep);color:var(--pale);font-family:'Cormorant Garamond',s
 const SUPABASE_URL = 'https://asdkskkhsupbqkhwcbun.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzZGtza2toc3VwYnFraHdjYnVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NzcwMjUsImV4cCI6MjA5MjU1MzAyNX0.boWOR5ZM-t2s8KraZodcHjr-aTL27LT70_UVcjLDVIQ';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-var currentUser=null,userStats={current_streak:0,total_sessions:0,total_minutes:0,longest_streak:0},userUnlocks=[],isGuest=false;
+var currentUser=null,userStats={current_streak:0,total_sessions:0,total_minutes:0,longest_streak:0},userUnlocks=[],isGuest=false,currentSessionId=null,sessionInsertPromise=null,emailSessionSource='direct';
 
 // All photo URLs now use the same image for both thumb and session background
 var PHOTOS={
@@ -360,6 +360,9 @@ function checkNewUnlocks(prev,next){
 }
 
 function initAuth(){
+  var urlParams=new URLSearchParams(window.location.search);
+  var token=urlParams.get('token');
+  if(token){validateTokenAndStartSession(token);return;}
   sb.auth.onAuthStateChange(async function(event,session){
     if(event==='SIGNED_IN'||event==='INITIAL_SESSION'){
       if(session){
@@ -370,6 +373,53 @@ function initAuth(){
       }
     }
   });
+}
+
+async function validateTokenAndStartSession(token){
+  var screen=document.getElementById('auth-screen');
+  screen.style.display='flex';
+  document.getElementById('auth-submit').style.display='none';
+  document.getElementById('auth-email').style.display='none';
+  document.getElementById('auth-skip').style.display='none';
+  document.getElementById('auth-msg').textContent='Preparing your session…';
+  try{
+    var resp=await fetch(SUPABASE_URL+'/functions/v1/validate-session-token',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON},
+      body:JSON.stringify({token:token})
+    });
+    var data=await resp.json();
+    if(!resp.ok||data.error){
+      document.getElementById('auth-msg').textContent=data.error==='Token expired'?
+        'This link has expired — check your email for today\'s link.':
+        'This link is no longer valid.';
+      document.getElementById('auth-skip').style.display='';
+      return;
+    }
+    var setResult=await sb.auth.setSession({access_token:data.session.access_token,refresh_token:data.session.refresh_token});
+    if(setResult.error){document.getElementById('auth-msg').textContent='Something went wrong. Please try again.';return;}
+    currentUser=setResult.data.session.user;isGuest=false;
+    await loadUserData();
+    emailSessionSource='email_link';
+    startSession('lake','dusk',2);
+  }catch(err){
+    console.error('[Breathemore] token validation error:',err);
+    document.getElementById('auth-msg').textContent='Something went wrong. Please try again.';
+  }
+}
+
+async function insertSessionRecord(source){
+  if(!currentUser||isGuest){currentSessionId=null;return;}
+  var ins=await sb.from('sessions').insert({
+    user_id:currentUser.id,
+    started_at:new Date().toISOString(),
+    source:source||'direct',
+    background_image:currentLoc,
+    breathing_technique:'simple_deep',
+    completed:false
+  }).select('id').single();
+  if(ins.error){console.error('[Breathemore] session record insert failed:',ins.error.message);}
+  else{currentSessionId=ins.data?ins.data.id:null;}
 }
 function showAuth(){document.getElementById('auth-screen').style.display='flex';document.getElementById('landing').style.display='none';}
 function showLanding(){
@@ -408,8 +458,15 @@ function updateStreakDisplay(){
 async function saveSession(loc,time,durationSeconds){
   if(!currentUser||isGuest)return;
   var prevSessions=userStats.total_sessions||0;
-  var ins=await sb.from('sessions').insert({user_id:currentUser.id,location:loc,time_of_day:time,duration_seconds:durationSeconds,completed:true});
-  if(ins.error){console.error('[Breathemore] session insert failed:',ins.error.message,ins.error);return;}
+  if(sessionInsertPromise)await sessionInsertPromise;
+  if(currentSessionId){
+    var upd=await sb.from('sessions').update({completed:true,completed_at:new Date().toISOString(),duration_seconds:durationSeconds}).eq('id',currentSessionId);
+    if(upd.error)console.error('[Breathemore] session update failed:',upd.error.message,upd.error);
+  }else{
+    var fb=await sb.from('sessions').insert({user_id:currentUser.id,started_at:new Date().toISOString(),completed_at:new Date().toISOString(),duration_seconds:durationSeconds,background_image:loc,breathing_technique:'simple_deep',completed:true,source:'direct'});
+    if(fb.error){console.error('[Breathemore] session insert failed:',fb.error.message,fb.error);}
+  }
+  currentSessionId=null;sessionInsertPromise=null;
   var today=new Date().toISOString().split('T')[0],lastDate=userStats.last_session_date,yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0],newStreak=userStats.current_streak||0;
   if(lastDate===today){}else if(lastDate===yesterday){newStreak+=1;}else{newStreak=1;}
   var newTotal=(userStats.total_sessions||0)+1,newMinutes=(userStats.total_minutes||0)+Math.round(durationSeconds/60),newLongest=Math.max(userStats.longest_streak||0,newStreak);
@@ -556,6 +613,7 @@ function launchSession(){
   document.getElementById('close-btn').style.display='';
   document.getElementById('scene').classList.add('active');
   resizeCanvas();startAudio(currentLoc);
+  sessionInsertPromise=insertSessionRecord(emailSessionSource);emailSessionSource='direct';
   sessionActive=true;sessionStart=performance.now();phaseStart=sessionStart;breathPhase=0;dotY=0;
   if(animFrame)cancelAnimationFrame(animFrame);
   setTimeout(function(){tick();},800);
