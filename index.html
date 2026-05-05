@@ -326,7 +326,7 @@ async function validateTokenAndStartSession(token){
       document.getElementById('auth-skip').style.display='';
       return;
     }
-    var setResult=await sb.auth.setSession({access_token:data.session.access_token,refresh_token:data.session.refresh_token});
+    var setResult=await sb.auth.verifyOtp({token_hash:data.otp_token,type:'magiclink'});
     if(setResult.error){document.getElementById('auth-msg').textContent='Something went wrong. Please try again.';return;}
     currentUser=setResult.data.session.user;isGuest=false;
     await loadUserData();

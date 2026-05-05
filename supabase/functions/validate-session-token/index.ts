@@ -73,12 +73,23 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.createSession({
-      user_id: tokenRecord.user_id
+    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(tokenRecord.user_id)
+
+    if (userError || !userData?.user) {
+      console.error('getUserById error:', userError)
+      return new Response(
+        JSON.stringify({ error: 'User not found' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: userData.user.email
     })
 
-    if (sessionError || !sessionData?.session) {
-      console.error('createSession error:', sessionError)
+    if (linkError || !linkData?.properties?.hashed_token) {
+      console.error('generateLink error:', linkError)
       return new Response(
         JSON.stringify({ error: 'Failed to create session' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -86,7 +97,10 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ session: sessionData.session }),
+      JSON.stringify({
+        otp_token: linkData.properties.hashed_token,
+        email: userData.user.email
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
