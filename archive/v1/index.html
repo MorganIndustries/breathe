@@ -129,13 +129,63 @@ body{background:var(--deep);color:var(--pale);font-family:'Cormorant Garamond',s
 <div id="landing" style="display:none">
 <div class="eyebrow">A moment of stillness</div>
 <h1>Breathemore</h1>
-<div class="intro-text">Two minutes of conscious breathing.<br>Sit comfortably and begin when you're ready.</div>
+<div class="intro-text">Choose a scene and begin. Complete sessions to unlock new locations, times of day, and breathing patterns — one breath at a time.</div>
 <div id="streak-bar" style="display:none">
 <div class="streak-item"><span class="streak-num" id="stat-streak">0</span><span class="streak-label">Day Streak</span></div>
 <div class="streak-div"></div>
 <div class="streak-item"><span class="streak-num" id="stat-sessions">0</span><span class="streak-label">Sessions</span></div>
 <div class="streak-div"></div>
 <div class="streak-item"><span class="streak-num" id="stat-minutes">0</span><span class="streak-label">Minutes</span></div>
+</div>
+<div class="section-label">Choose your place</div>
+<div id="location-grid">
+<button class="loc-card active" data-loc="lake">
+<div class="loc-thumb" id="thumb-lake"></div>
+<div class="loc-bottom"><div class="loc-name">Mountain Lake</div><div class="loc-sessions"></div></div>
+<div class="loc-check">&#10003;</div>
+</button>
+<button class="loc-card locked" data-loc="ocean" data-sessions="3">
+<div class="loc-thumb" id="thumb-ocean"></div>
+<div class="loc-bottom"><div class="loc-name">Ocean Cliff</div><div class="loc-sessions">🔒 3 sessions</div></div>
+<div class="loc-check">&#10003;</div>
+<div class="lock-overlay">🔒</div>
+</button>
+<button class="loc-card locked" data-loc="forest" data-sessions="5">
+<div class="loc-thumb" id="thumb-forest"></div>
+<div class="loc-bottom"><div class="loc-name">Pine Forest</div><div class="loc-sessions">🔒 5 sessions</div></div>
+<div class="loc-check">&#10003;</div>
+<div class="lock-overlay">🔒</div>
+</button>
+<button class="loc-card locked" data-loc="desert" data-sessions="10">
+<div class="loc-thumb" id="thumb-desert"></div>
+<div class="loc-bottom"><div class="loc-name">Desert Mesa</div><div class="loc-sessions">🔒 10 sessions</div></div>
+<div class="loc-check">&#10003;</div>
+<div class="lock-overlay">🔒</div>
+</button>
+<button class="loc-card locked" data-loc="meadow" data-sessions="15">
+<div class="loc-thumb" id="thumb-meadow"></div>
+<div class="loc-bottom"><div class="loc-name">Wildflower Meadow</div><div class="loc-sessions">🔒 15 sessions</div></div>
+<div class="loc-check">&#10003;</div>
+<div class="lock-overlay">🔒</div>
+</button>
+<button class="loc-card no-image-card" data-loc="none">
+<div class="loc-thumb" id="thumb-none" style="background:linear-gradient(135deg,#1a3a4a 0%,#0a1520 100%)"></div>
+<div class="loc-bottom"><div class="loc-name">No Image</div><div class="loc-sessions"></div></div>
+<div class="loc-check">&#10003;</div>
+</button>
+</div>
+<div class="section-label">Time of day</div>
+<div id="time-grid">
+<button class="time-btn locked" data-time="dawn" data-sessions="20">Dawn<span class="time-lock">🔒 20 sessions</span></button>
+<button class="time-btn active" data-time="dusk">Dusk</button>
+<button class="time-btn locked" data-time="night" data-sessions="8">Night<span class="time-lock">🔒 8 sessions</span></button>
+<button class="time-btn locked" data-time="golden" data-sessions="5">Golden Hour<span class="time-lock">🔒 5 sessions</span></button>
+</div>
+<div class="section-label">Session length</div>
+<div class="dur-row">
+<button class="dur-btn active" data-mins="2">2 min</button>
+<button class="dur-btn" data-mins="3">3 min</button>
+<button class="dur-btn" data-mins="5">5 min</button>
 </div>
 <button class="begin-btn" id="begin-btn">Begin</button>
 </div>
@@ -155,8 +205,14 @@ body{background:var(--deep);color:var(--pale);font-family:'Cormorant Garamond',s
 <div id="end-screen">
 <h2>Well done</h2>
 <div id="end-streak"></div>
+<div class="end-sub">Replay this session</div>
+<div class="end-row">
+<button class="end-btn primary" data-replay="2">2 min</button>
+<button class="end-btn primary" data-replay="3">3 min</button>
+<button class="end-btn primary" data-replay="5">5 min</button>
+</div>
 <div class="end-row" style="margin-top:0.5rem">
-<button class="end-btn primary" data-replay="2">Breathe again</button>
+<button class="end-btn" id="change-scene-btn">Change scene</button>
 <button class="end-btn ghost" id="exit-btn">Exit</button>
 </div>
 </div>
@@ -276,8 +332,25 @@ function showTipToast(text){
 }
 
 function checkNewUnlocks(prev,next){
-  // Scene/time unlock notifications reserved for future rollout
+  var msgs=[
+    {at:3,icon:'🌊',text:'Ocean Cliff unlocked'},
+    {at:5,icon:'🌲',text:'Pine Forest unlocked'},
+    {at:5,icon:'🌅',text:'Golden Hour unlocked'},
+    {at:7,icon:'⬜',text:'Box Breathing unlocked'},
+    {at:8,icon:'🌙',text:'Night unlocked'},
+    {at:10,icon:'🌵',text:'Desert Mesa unlocked'},
+    {at:12,icon:'😴',text:'4-7-8 Sleep Breath unlocked'},
+    {at:15,icon:'🌾',text:'Wildflower Meadow unlocked'},
+    {at:20,icon:'🌄',text:'Dawn unlocked'},
+  ];
   var delay=1000;
+  msgs.forEach(function(u){
+    if(prev<u.at&&next>=u.at){
+      setTimeout(function(){showUnlockToast(u.icon,u.text);},delay);
+      delay+=4000;
+    }
+  });
+  // Show relaxation tip after unlocks
   TIPS.forEach(function(tip){
     if(prev<tip.at&&next>=tip.at){
       setTimeout(function(){showTipToast(tip.text);},delay);
@@ -607,12 +680,16 @@ function replaySession(mins){
   },600);
 }
 
-// Location, time, and duration selectors reserved for future rollout
+document.querySelectorAll('.loc-card').forEach(function(b){b.addEventListener('click',function(){if(b.classList.contains('locked'))return;document.querySelectorAll('.loc-card').forEach(function(x){x.classList.remove('active');});b.classList.add('active');});});
+document.querySelectorAll('.time-btn').forEach(function(b){b.addEventListener('click',function(){if(b.classList.contains('locked'))return;document.querySelectorAll('.time-btn').forEach(function(x){x.classList.remove('active');});b.classList.add('active');});});
+document.querySelectorAll('.dur-btn').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.dur-btn').forEach(function(x){x.classList.remove('active');});b.classList.add('active');});});
 document.getElementById('begin-btn').addEventListener('click',function(){
-  startSession(currentLoc,currentTime,2);
+  var loc=document.querySelector('.loc-card.active').dataset.loc,time=document.querySelector('.time-btn.active').dataset.time,mins=parseInt(document.querySelector('.dur-btn.active').dataset.mins);
+  startSession(loc,time,mins);
 });
 document.getElementById('close-btn').addEventListener('click',function(){endSession(true);});
 document.querySelectorAll('[data-replay]').forEach(function(b){b.addEventListener('click',function(){replaySession(parseInt(b.dataset.replay));});});
+document.getElementById('change-scene-btn').addEventListener('click',function(){endSession(true);});
 document.getElementById('exit-btn').addEventListener('click',function(){endSession(true);});
 window.addEventListener('resize',function(){if(sessionActive)resizeCanvas();});
 document.addEventListener('touchmove',function(e){e.preventDefault();},{passive:false});

@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
   <div class="wrap">
     <div class="eye">A moment of stillness</div>
     <h1>Breathemore</h1>
-    <p>Two minutes of calm are waiting for you.<br>One click to begin.</p>
+    <p>Your daily breathing session is ready.<br>One click to begin.</p>
     <a href="${sessionUrl}" class="cta">Begin today's session &rarr;</a>
     <div class="foot">breathemore.co</div>
   </div>
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${resendApiKey}`,
         },
-        body: JSON.stringify({ from: fromEmail, to: user.email, subject: 'Your two minutes of calm', html })
+        body: JSON.stringify({ from: fromEmail, to: user.email, subject: 'Your breathing session is ready', html })
       })
 
       if (resp.ok) {
