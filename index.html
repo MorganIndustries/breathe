@@ -102,6 +102,8 @@ body{background:var(--deep);color:var(--pale);font-family:'Cormorant Garamond',s
 .end-btn.ghost:hover{border-color:rgba(232,221,208,0.4);color:rgba(232,221,208,0.8)}
 #close-btn{position:fixed;top:1.3rem;right:1.5rem;z-index:50;background:transparent;border:1px solid rgba(200,169,110,0.25);color:rgba(232,221,208,0.55);font-family:'Raleway',sans-serif;font-weight:200;font-size:0.63rem;letter-spacing:0.28em;text-transform:uppercase;padding:0.36rem 0.82rem;cursor:pointer;transition:all 0.3s ease}
 #close-btn:hover{border-color:rgba(200,169,110,0.5);color:var(--accent)}
+#fullscreen-btn{position:fixed;top:1.3rem;left:1.5rem;z-index:50;background:transparent;border:1px solid rgba(200,169,110,0.25);color:rgba(232,221,208,0.55);font-family:'Raleway',sans-serif;font-weight:200;font-size:0.63rem;letter-spacing:0.28em;text-transform:uppercase;padding:0.36rem 0.82rem;cursor:pointer;transition:all 0.3s ease}
+#fullscreen-btn:hover{border-color:rgba(200,169,110,0.5);color:var(--accent)}
 #session-info{position:fixed;bottom:1.4rem;left:50%;transform:translateX(-50%);z-index:10;font-family:'Raleway',sans-serif;font-weight:200;font-size:0.58rem;letter-spacing:0.35em;text-transform:uppercase;color:rgba(232,221,208,0.55);pointer-events:none;white-space:nowrap}
 @media(max-height:700px){
 #landing h1{font-size:2rem;margin-bottom:0.4rem}
@@ -151,6 +153,7 @@ body{background:var(--deep);color:var(--pale);font-family:'Cormorant Garamond',s
 </div>
 <div id="quote"><div id="quote-text"></div><div id="quote-attr"></div></div>
 <div id="session-info"></div>
+<button id="fullscreen-btn">full screen</button>
 <button id="close-btn">&#10005; end</button>
 <div id="end-screen">
 <h2>Well done</h2>
@@ -610,6 +613,13 @@ function replaySession(mins){
 // Location, time, and duration selectors reserved for future rollout
 document.getElementById('begin-btn').addEventListener('click',function(){
   startSession(currentLoc,currentTime,2);
+});
+document.getElementById('fullscreen-btn').addEventListener('click',function(){
+  if(!document.fullscreenElement){document.documentElement.requestFullscreen().catch(function(){});}
+  else{document.exitFullscreen();}
+});
+document.addEventListener('fullscreenchange',function(){
+  document.getElementById('fullscreen-btn').textContent=document.fullscreenElement?'exit full':'full screen';
 });
 document.getElementById('close-btn').addEventListener('click',function(){endSession(true);});
 document.querySelectorAll('[data-replay]').forEach(function(b){b.addEventListener('click',function(){replaySession(parseInt(b.dataset.replay));});});
