@@ -480,7 +480,7 @@ async function saveSession(loc,time,durationSeconds){
   var today=new Date().toISOString().split('T')[0],lastDate=userStats.last_session_date,yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0],newStreak=userStats.current_streak||0;
   if(lastDate===today){}else if(lastDate===yesterday){newStreak+=1;}else{newStreak=1;}
   var newTotal=(userStats.total_sessions||0)+1,newMinutes=(userStats.total_minutes||0)+Math.round(durationSeconds/60),newLongest=Math.max(userStats.longest_streak||0,newStreak);
-  var ups=await sb.from('streaks').upsert({user_id:currentUser.id,current_streak:newStreak,longest_streak:newLongest,total_sessions:newTotal,total_minutes:newMinutes,last_session_date:today});
+  var ups=await sb.from('streaks').upsert({user_id:currentUser.id,current_streak:newStreak,longest_streak:newLongest,total_sessions:newTotal,total_minutes:newMinutes,last_session_date:today},{onConflict:'user_id'});
   if(ups.error){console.error('[Breathemore] streak upsert failed:',ups.error.message,ups.error);}
   userStats.current_streak=newStreak;userStats.longest_streak=newLongest;userStats.total_sessions=newTotal;userStats.total_minutes=newMinutes;userStats.last_session_date=today;
   checkNewUnlocks(prevSessions,newTotal);
