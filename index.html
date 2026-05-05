@@ -614,6 +614,7 @@ function replaySession(mins){
 document.getElementById('begin-btn').addEventListener('click',function(){
   startSession(currentLoc,currentTime,2);
 });
+if(!document.fullscreenEnabled){document.getElementById('fullscreen-btn').style.display='none';}
 document.getElementById('fullscreen-btn').addEventListener('click',function(){
   if(!document.fullscreenElement){document.documentElement.requestFullscreen().catch(function(){});}
   else{document.exitFullscreen();}
