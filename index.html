@@ -331,6 +331,9 @@ async function validateTokenAndStartSession(token){
     currentUser=setResult.data.session.user;isGuest=false;
     await loadUserData();
     emailSessionSource='email_link';
+    var authScreen=document.getElementById('auth-screen');
+    authScreen.classList.add('hide');
+    setTimeout(function(){authScreen.style.display='none';},100);
     startSession('lake','dusk',2);
   }catch(err){
     console.error('[Breathemore] token validation error:',err);

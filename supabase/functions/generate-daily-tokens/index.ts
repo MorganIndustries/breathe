@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     }
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
-    const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') || 'hello@breathemore.co'
+    const fromEmail = 'Breathemore <' + (Deno.env.get('RESEND_FROM_EMAIL') || 'hello@breathemore.co') + '>'
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
     let sent = 0, failed = 0
 
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     .wrap{max-width:480px;margin:0 auto;padding:56px 32px;text-align:center}
     .eye{font-family:Arial,sans-serif;font-size:10px;letter-spacing:0.42em;text-transform:uppercase;color:#c8a96e;margin-bottom:10px}
     h1{color:#e8ddd0;font-weight:300;font-style:italic;font-size:34px;margin:0 0 20px;letter-spacing:0.08em}
-    p{color:rgba(232,221,208,0.9);font-size:13px;line-height:1.9;margin:0 0 36px;font-family:Arial,sans-serif;font-weight:300;letter-spacing:0.04em}
+    p{color:#e8ddd0;font-size:13px;line-height:1.9;margin:0 0 36px;font-family:Arial,sans-serif;font-weight:300;letter-spacing:0.04em}
     .cta{display:inline-block;border:1px solid rgba(200,169,110,0.55);color:#c8a96e;font-family:Georgia,serif;font-style:italic;font-size:17px;letter-spacing:0.14em;padding:15px 44px;text-decoration:none}
     .foot{margin-top:52px;font-family:Arial,sans-serif;font-size:10px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(232,221,208,0.25)}
   </style>
