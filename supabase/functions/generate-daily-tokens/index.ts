@@ -20,13 +20,39 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Failed to list users' }), { status: 500 })
     }
 
+    const { data: streaks } = await supabaseAdmin
+      .from('streaks')
+      .select('user_id, unsubscribed, unsubscribe_token')
+
+    const prefMap = {}
+    if (streaks) {
+      streaks.forEach(s => { prefMap[s.user_id] = s })
+    }
+
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
     const fromEmail = 'Breathemore <' + (Deno.env.get('RESEND_FROM_EMAIL') || 'hello@breathemore.co') + '>'
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
-    let sent = 0, failed = 0
+    let sent = 0, failed = 0, skipped = 0
 
     for (const user of users) {
       if (!user.email) continue
+
+      const prefs = prefMap[user.id]
+
+      if (prefs?.unsubscribed) {
+        skipped++
+        continue
+      }
+
+      let unsubToken = prefs?.unsubscribe_token
+      if (!unsubToken) {
+        unsubToken = Array.from(crypto.getRandomValues(new Uint8Array(24)))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('')
+        await supabaseAdmin
+          .from('streaks')
+          .upsert({ user_id: user.id, unsubscribe_token: unsubToken }, { onConflict: 'user_id' })
+      }
 
       const token = Array.from(crypto.getRandomValues(new Uint8Array(32)))
         .map(b => b.toString(16).padStart(2, '0'))
@@ -42,6 +68,7 @@ Deno.serve(async (req) => {
       }
 
       const sessionUrl = `https://breathemore.co/session?token=${token}`
+      const unsubUrl = `https://asdkskkhsupbqkhwcbun.supabase.co/functions/v1/unsubscribe?token=${unsubToken}`
 
       const html = `<!DOCTYPE html>
 <html>
@@ -56,6 +83,8 @@ Deno.serve(async (req) => {
     p{color:#e8ddd0;font-size:13px;line-height:1.9;margin:0 0 36px;font-family:Arial,sans-serif;font-weight:300;letter-spacing:0.04em}
     .cta{display:inline-block;border:1px solid rgba(200,169,110,0.55);color:#c8a96e;font-family:Georgia,serif;font-style:italic;font-size:17px;letter-spacing:0.14em;padding:15px 44px;text-decoration:none}
     .foot{margin-top:52px;font-family:Arial,sans-serif;font-size:10px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(232,221,208,0.25)}
+    .unsub{margin-top:20px;font-family:Arial,sans-serif;font-size:10px;letter-spacing:0.15em;color:rgba(232,221,208,0.25)}
+    .unsub a{color:rgba(232,221,208,0.25)}
   </style>
 </head>
 <body>
@@ -65,6 +94,7 @@ Deno.serve(async (req) => {
     <p>Two minutes of calm are waiting for you.<br>One click to begin.</p>
     <a href="${sessionUrl}" class="cta">Begin today's session &rarr;</a>
     <div class="foot">breathemore.co</div>
+    <div class="unsub"><a href="${unsubUrl}">Unsubscribe</a></div>
   </div>
 </body>
 </html>`
@@ -88,9 +118,9 @@ Deno.serve(async (req) => {
       await delay(100)
     }
 
-    console.log(`Sent: ${sent}, failed: ${failed}`)
+    console.log(`Sent: ${sent}, failed: ${failed}, skipped: ${skipped}`)
     return new Response(
-      JSON.stringify({ success: true, sent, failed }),
+      JSON.stringify({ success: true, sent, failed, skipped }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     )
 
