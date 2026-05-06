@@ -125,6 +125,12 @@ body{background:var(--deep);color:var(--pale);font-family:'Cormorant Garamond',s
 <p style="font-family:'Raleway',sans-serif;font-weight:200;font-size:0.65rem;letter-spacing:0.15em;color:rgba(232,221,208,0.35);margin-top:2rem">You're always welcome back at breathemore.co</p>
 </div>
 
+<div id="confirmed-screen" style="display:none;position:fixed;inset:0;z-index:300;background:var(--deep);flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center">
+<div class="eyebrow">A moment of stillness</div>
+<h1 style="font-weight:300;font-style:italic;font-size:clamp(2.4rem,5.5vw,4.2rem);letter-spacing:0.1em;margin-bottom:0.5rem">Breathemore</h1>
+<p style="font-family:'Raleway',sans-serif;font-weight:200;font-size:0.78rem;letter-spacing:0.08em;color:rgba(232,221,208,0.7);line-height:1.9;max-width:360px;margin-top:1.5rem">You're in.<br>Your first session will arrive shortly.</p>
+</div>
+
 <div id="auth-screen">
 <div class="eyebrow">A moment of stillness</div>
 <h1>Breathemore</h1>
@@ -300,6 +306,11 @@ function initAuth(){
   var urlParams=new URLSearchParams(window.location.search);
   if(urlParams.get('unsubscribed')==='true'){
     document.getElementById('unsub-screen').style.display='flex';
+    return;
+  }
+  var hashParams=new URLSearchParams(window.location.hash.substring(1));
+  if(hashParams.get('type')==='signup'){
+    document.getElementById('confirmed-screen').style.display='flex';
     return;
   }
   var token=urlParams.get('token');
