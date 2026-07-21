@@ -313,9 +313,9 @@ function initAuth(){
     return;
   }
   var hashParams=new URLSearchParams(window.location.hash.substring(1));
-  if(hashParams.get('type')==='signup'){
+  var isSignupConfirmation=hashParams.get('type')==='signup';
+  if(isSignupConfirmation){
     document.getElementById('confirmed-screen').style.display='flex';
-    return;
   }
   var token=urlParams.get('token');
   if(token){validateTokenAndStartSession(token);return;}
@@ -324,9 +324,17 @@ function initAuth(){
       if(session){
         currentUser=session.user;isGuest=false;
         posthog.identify(currentUser.id,{email:currentUser.email});
+        if(isSignupConfirmation){
+          fetch(SUPABASE_URL+'/functions/v1/send-welcome-email',{
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON},
+            body:JSON.stringify({user_id:currentUser.id,email:currentUser.email})
+          }).catch(function(e){console.error('[Breathemore] welcome email error:',e);});
+          return;
+        }
         await loadUserData();showLanding();
       } else if(event==='INITIAL_SESSION'){
-        showAuth();
+        if(!isSignupConfirmation)showAuth();
       }
     }
   });
