@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Breathemore</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+!function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a=e,u.people=u.people||[],u.toString=function(t){var e="posthog";return void 0!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+" (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing opt_in_capturing has_opted_out_capturing has_opted_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys getNextSurveyStep onSessionId setPersonPropertiesForFlags".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||(window.posthog=[]));
+posthog.init('phc_xqnMTzSvKNdZuUqCsV98nCjUZD5iPcKTfANXJdkDDUEB',{api_host:'https://us.i.posthog.com',person_profiles:'identified_only'});
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Raleway:wght@200;300;400&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
@@ -319,6 +323,7 @@ function initAuth(){
     if(event==='SIGNED_IN'||event==='INITIAL_SESSION'){
       if(session){
         currentUser=session.user;isGuest=false;
+        posthog.identify(currentUser.id,{email:currentUser.email});
         await loadUserData();showLanding();
       } else if(event==='INITIAL_SESSION'){
         showAuth();
@@ -351,6 +356,7 @@ async function validateTokenAndStartSession(token){
     var setResult=await sb.auth.verifyOtp({token_hash:data.otp_token,type:'magiclink'});
     if(setResult.error){document.getElementById('auth-msg').textContent='Something went wrong. Please try again.';return;}
     currentUser=setResult.data.session.user;isGuest=false;
+    posthog.identify(currentUser.id,{email:currentUser.email});
     await loadUserData();
     emailSessionSource='email_link';
     var authScreen=document.getElementById('auth-screen');
@@ -548,7 +554,7 @@ function tick(){
   drawFx(op,bp,currentTime,isNoImage);
   var ui=document.getElementById('breath-ui');
   if(p<0.04)ui.style.opacity=(p/0.04).toString();else if(p>0.92)ui.style.opacity=((1-p)/0.08).toString();else ui.style.opacity='1';
-  if(p>=1){document.getElementById('phase-label').textContent='';fadeOutAudio(4);saveSession(currentLoc,currentTime,sessionDuration);showEndScreen();return;}
+  if(p>=1){document.getElementById('phase-label').textContent='';fadeOutAudio(4);saveSession(currentLoc,currentTime,sessionDuration);posthog.capture('session_completed',{duration_minutes:sessionDuration/60,location:currentLoc,time_of_day:currentTime});showEndScreen();return;}
   animFrame=requestAnimationFrame(tick);
 }
 
@@ -580,6 +586,7 @@ function launchSession(){
   resizeCanvas();startAudio(currentLoc);
   sessionInsertPromise=insertSessionRecord(emailSessionSource);emailSessionSource='direct';
   sessionActive=true;sessionStart=performance.now();phaseStart=sessionStart;breathPhase=0;dotY=0;
+  posthog.capture('session_started',{duration_minutes:sessionDuration/60,location:currentLoc,time_of_day:currentTime});
   if(animFrame)cancelAnimationFrame(animFrame);
   setTimeout(function(){tick();},800);
 }
@@ -608,6 +615,7 @@ function showEndScreen(){
   setTimeout(function(){es.classList.add('visible');},80);
 }
 function endSession(goHome){
+  if(sessionActive)posthog.capture('session_abandoned',{duration_minutes:sessionDuration/60,location:currentLoc,time_of_day:currentTime,elapsed_seconds:Math.round((performance.now()-sessionStart)/1000)});
   if(animFrame)cancelAnimationFrame(animFrame);
   fadeOutAudio(1.5);stopColorBg();
   var scene=document.getElementById('scene');
